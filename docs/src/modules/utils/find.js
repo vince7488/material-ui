@@ -1,16 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const markdownRegex = /\.md$/;
-
 /**
  * Returns the markdowns of the documentation in a flat array.
  * @param {string} [directory]
  * @param {Array<{ filename: string, pathname: string }>} [pagesMarkdown]
  * @returns {Array<{ filename: string, pathname: string }>}
  */
-function findPagesMarkdown(
-  directory = path.resolve(__dirname, '../../../src/pages'),
+function findPagesMarkdownNew(
+  directory = path.resolve(__dirname, '../../../data'),
   pagesMarkdown = [],
 ) {
   const items = fs.readdirSync(directory);
@@ -19,21 +17,22 @@ function findPagesMarkdown(
     const itemPath = path.resolve(directory, item);
 
     if (fs.statSync(itemPath).isDirectory()) {
-      findPagesMarkdown(itemPath, pagesMarkdown);
+      findPagesMarkdownNew(itemPath, pagesMarkdown);
       return;
     }
 
-    if (!markdownRegex.test(item)) {
+    if (!/\.md$/.test(item) || /-(zh|pt)\.md/.test(item)) {
+      // neglect translation markdown
       return;
     }
 
     let pathname = itemPath
       .replace(new RegExp(`\\${path.sep}`, 'g'), '/')
-      .replace(/^.*\/pages/, '')
+      .replace(/^.*\/data/, '')
       .replace('.md', '');
 
     // Remove the last pathname segment.
-    pathname = pathname.split('/').slice(0, 3).join('/');
+    pathname = pathname.split('/').slice(0, 4).join('/');
 
     pagesMarkdown.push({
       // Relative location in the path (URL) system.
@@ -144,8 +143,12 @@ function findPages(
   pages.sort((a, b) => {
     const pathnameA = a.pathname.replace(/-/g, '');
     const pathnameB = b.pathname.replace(/-/g, '');
-    if (pathnameA < pathnameB) return -1;
-    if (pathnameA > pathnameB) return 1;
+    if (pathnameA < pathnameB) {
+      return -1;
+    }
+    if (pathnameA > pathnameB) {
+      return 1;
+    }
     return 0;
   });
 
@@ -154,6 +157,6 @@ function findPages(
 
 module.exports = {
   findPages,
-  findPagesMarkdown,
+  findPagesMarkdownNew,
   findComponents,
 };

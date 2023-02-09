@@ -4,10 +4,8 @@ import PropTypes from 'prop-types';
 /**
  * A basic error boundary that can be used to assert thrown errors in render.
  * @example <ErrorBoundary ref={errorRef}><MyComponent /></ErrorBoundary>;
- *          expect(errorRef.current.errors).to.have.lenght(0);
+ *          expect(errorRef.current.errors).to.have.length(0);
  */
-// enforce a single file for test related components
-// eslint-disable-next-line import/prefer-default-export
 export class ErrorBoundary extends React.Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
@@ -37,3 +35,30 @@ export class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+/**
+ * Allows counting how many times the owner of `RenderCounter` rendered or
+ * a component within the RenderCounter tree "commits" an update.
+ * @example <RenderCounter ref={getRenderCountRef}>...</RenderCounter>
+ *          getRenderCountRef.current() === 2
+ * @type {import('react').JSXElementConstructor<{children: import('react').ReactNode} & import('react').RefAttributes<() => number>>}
+ */
+export const RenderCounter = React.forwardRef(function RenderCounter({ children }, ref) {
+  const getRenderCountRef = React.useRef(0);
+  React.useImperativeHandle(ref, () => () => getRenderCountRef.current);
+
+  return (
+    <React.Profiler
+      id="render-counter"
+      onRender={() => {
+        getRenderCountRef.current += 1;
+      }}
+    >
+      {children}
+    </React.Profiler>
+  );
+});
+
+RenderCounter.propTypes = {
+  children: PropTypes.node,
+};

@@ -1,42 +1,35 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
-import clsx from 'clsx';
-import { useSelector } from 'react-redux';
-import { alpha, makeStyles } from '@material-ui/core/styles';
-import IconButton from '@material-ui/core/IconButton';
-import Collapse from '@material-ui/core/Collapse';
-import NoSsr from '@material-ui/core/NoSsr';
+import { useRouter } from 'next/router';
+import { alpha, styled } from '@mui/material/styles';
+import { styled as joyStyled } from '@mui/joy/styles';
+import IconButton from '@mui/material/IconButton';
+import Collapse from '@mui/material/Collapse';
+import NoSsr from '@mui/material/NoSsr';
 import HighlightedCode from 'docs/src/modules/components/HighlightedCode';
 import DemoSandboxed from 'docs/src/modules/components/DemoSandboxed';
 import { AdCarbonInline } from 'docs/src/modules/components/AdCarbon';
-import getJsxPreview from 'docs/src/modules/utils/getJsxPreview';
+import { useCodeVariant } from 'docs/src/modules/utils/codeVariant';
 import { CODE_VARIANTS } from 'docs/src/modules/constants';
 import { useUserLanguage, useTranslate } from 'docs/src/modules/utils/i18n';
+import BrandingProvider from 'docs/src/BrandingProvider';
 
 const DemoToolbar = React.lazy(() => import('./DemoToolbar'));
 // Sync with styles from DemoToolbar
 // Importing the styles results in no bundle size reduction
-const useDemoToolbarFallbackStyles = makeStyles(
-  (theme) => {
-    return {
-      root: {
-        display: 'none',
-        [theme.breakpoints.up('sm')]: {
-          display: 'flex',
-          height: theme.spacing(6),
-        },
-      },
-    };
-  },
-  { name: 'DemoToolbar' },
-);
+const DemoToolbarFallbackRoot = styled('div')(({ theme }) => {
+  return {
+    display: 'none',
+    [theme.breakpoints.up('sm')]: {
+      display: 'flex',
+      height: theme.spacing(8),
+    },
+  };
+});
 export function DemoToolbarFallback() {
-  const classes = useDemoToolbarFallbackStyles();
   const t = useTranslate();
 
-  return (
-    <div aria-busy aria-label={t('demoToolbarLabel')} className={classes.root} role="toolbar" />
-  );
+  return <DemoToolbarFallbackRoot aria-busy aria-label={t('demoToolbarLabel')} role="toolbar" />;
 }
 
 function getDemoName(location) {
@@ -45,7 +38,23 @@ function getDemoName(location) {
 
 function useDemoData(codeVariant, demo, githubLocation) {
   const userLanguage = useUserLanguage();
-  const title = `${getDemoName(githubLocation)} Material Demo`;
+  const router = useRouter();
+  const asPathWithoutLang = router.asPath.replace(/^\/[a-zA-Z]{2}\//, '/');
+  let product;
+  let name = 'Material UI';
+  if (asPathWithoutLang.startsWith('/joy-ui/')) {
+    product = 'joy-ui';
+    name = 'Joy UI';
+  }
+  if (asPathWithoutLang.startsWith('/base/')) {
+    product = 'base';
+    name = 'MUI Base';
+  }
+  if (asPathWithoutLang.startsWith('/x/')) {
+    name = 'MUI X';
+  }
+
+  const title = `${getDemoName(githubLocation)} demo — ${name}`;
   if (codeVariant === CODE_VARIANTS.TS && demo.rawTS) {
     return {
       codeVariant: CODE_VARIANTS.TS,
@@ -55,6 +64,7 @@ function useDemoData(codeVariant, demo, githubLocation) {
       Component: demo.tsx,
       sourceLanguage: 'tsx',
       title,
+      product,
     };
   }
 
@@ -66,6 +76,7 @@ function useDemoData(codeVariant, demo, githubLocation) {
     Component: demo.js,
     sourceLanguage: 'jsx',
     title,
+    product,
   };
 }
 
@@ -80,93 +91,171 @@ function useUniqueId(prefix) {
   return id ? `${prefix}${id}` : id;
 }
 
-const useStyles = makeStyles(
-  (theme) => ({
-    root: {
-      marginBottom: 40,
-      marginLeft: theme.spacing(-2),
-      marginRight: theme.spacing(-2),
-      [theme.breakpoints.up('sm')]: {
-        padding: theme.spacing(0, 1),
-        marginLeft: 0,
-        marginRight: 0,
-      },
-    },
-    demo: {
-      position: 'relative',
-      outline: 0,
-      margin: 'auto',
-      display: 'flex',
-      justifyContent: 'center',
-      [theme.breakpoints.up('sm')]: {
-        borderRadius: theme.shape.borderRadius,
-      },
-    },
-    /* Isolate the demo with an outline. */
-    demoBgOutlined: {
-      padding: theme.spacing(3),
-      border: `1px solid ${alpha(theme.palette.action.active, 0.12)}`,
-      borderLeftWidth: 0,
-      borderRightWidth: 0,
-      [theme.breakpoints.up('sm')]: {
-        borderLeftWidth: 1,
-        borderRightWidth: 1,
-      },
-    },
-    /* Prepare the background to display an inner elevation. */
-    demoBgTrue: {
-      padding: theme.spacing(3),
-      backgroundColor: theme.palette.background.level2,
-    },
-    /* Make no difference between the demo and the markdown. */
-    demoBgInline: {
-      // Maintain alignment with the markdown text
-      [theme.breakpoints.down('sm')]: {
-        padding: theme.spacing(3),
-      },
-    },
-    demoHiddenToolbar: {
-      paddingTop: theme.spacing(2),
-      [theme.breakpoints.up('sm')]: {
-        paddingTop: theme.spacing(3),
-      },
-    },
-    code: {
-      display: 'none',
-      padding: 0,
-      marginBottom: theme.spacing(1),
-      marginRight: 0,
-      [theme.breakpoints.up('sm')]: {
-        display: 'block',
-      },
-      '& pre': {
-        overflow: 'auto',
-        lineHeight: 1.5,
-        margin: '0 !important',
-        maxHeight: 'min(68vh, 1000px)',
-      },
-    },
-    anchorLink: {
-      marginTop: -64, // height of toolbar
-      position: 'absolute',
-    },
-    initialFocus: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      width: theme.spacing(4),
-      height: theme.spacing(4),
-      pointerEvents: 'none',
-    },
-  }),
-  { name: 'Demo' },
-);
+const Root = styled('div')(({ theme }) => ({
+  marginBottom: 24,
+  marginLeft: theme.spacing(-2),
+  marginRight: theme.spacing(-2),
+  [theme.breakpoints.up('sm')]: {
+    marginLeft: 0,
+    marginRight: 0,
+  },
+}));
 
+const DemoRootMaterial = styled('div', {
+  shouldForwardProp: (prop) => prop !== 'hiddenToolbar' && prop !== 'bg',
+})(({ theme, hiddenToolbar, bg }) => ({
+  position: 'relative',
+  outline: 0,
+  margin: 'auto',
+  display: 'flex',
+  justifyContent: 'center',
+  [theme.breakpoints.up('sm')]: {
+    borderRadius: 10,
+    ...(bg === 'outlined' && {
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+    }),
+    /* Make no difference between the demo and the markdown. */
+    ...(bg === 'inline' && {
+      padding: theme.spacing(0),
+    }),
+    ...(hiddenToolbar && {
+      paddingTop: theme.spacing(1),
+    }),
+  },
+  /* Isolate the demo with an outline. */
+  ...(bg === 'outlined' && {
+    padding: theme.spacing(3),
+    backgroundColor: theme.palette.background.paper,
+    border: `1px solid ${theme.palette.divider}`,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+  }),
+  /* Prepare the background to display an inner elevation. */
+  ...(bg === true && {
+    padding: theme.spacing(3),
+    backgroundColor:
+      theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[100],
+  }),
+  /* Mostly meant for introduction demos. */
+  ...(bg === 'gradient' && {
+    padding: theme.spacing(20, 8),
+    border: `1px solid ${
+      theme.palette.mode === 'dark'
+        ? alpha(theme.palette.primaryDark[500], 0.7)
+        : alpha(theme.palette.primary[100], 0.5)
+    }`,
+    overflow: 'hidden',
+    backgroundColor:
+      theme.palette.mode === 'dark'
+        ? theme.palette.primaryDark[800]
+        : alpha(theme.palette.primary[50], 0.5),
+    backgroundClip: 'padding-box',
+    backgroundImage:
+      theme.palette.mode === 'dark'
+        ? `radial-gradient(at 51% 52%, ${alpha(
+            theme.palette.primaryDark[700],
+            0.5,
+          )} 0px, transparent 50%),
+        radial-gradient(at 80% 0%, ${theme.palette.primaryDark[700]} 0px, transparent 50%),
+        radial-gradient(at 0% 95%, ${theme.palette.primaryDark[600]} 0px, transparent 50%),
+        radial-gradient(at 0% 20%, ${theme.palette.primaryDark[600]} 0px, transparent 35%),
+        radial-gradient(at 93% 85%, ${alpha(
+          theme.palette.primaryDark[500],
+          0.8,
+        )} 0px, transparent 50%), 
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23003A75' fill-opacity='0.15'%3E%3Cpath opacity='.5' d='M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z'/%3E%3Cpath d='M6 5V0H5v5H0v1h5v94h1V6h94V5H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");`
+        : `radial-gradient(at 51% 52%, ${alpha(
+            theme.palette.primary[50],
+            0.5,
+          )} 0px, transparent 50%),
+        radial-gradient(at 80% 0%, #FFFFFF 0px, transparent 20%),
+        radial-gradient(at 0% 95%, ${alpha(theme.palette.primary[100], 0.3)}, transparent 40%),
+        radial-gradient(at 0% 20%, ${theme.palette.primary[50]} 0px, transparent 50%), 
+        radial-gradient(at 93% 85%, ${alpha(
+          theme.palette.primary[100],
+          0.2,
+        )} 0px, transparent 50%), 
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23003A75' fill-opacity='0.03'%3E%3Cpath opacity='.5' d='M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z'/%3E%3Cpath d='M6 5V0H5v5H0v1h5v94h1V6h94V5H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");`,
+  }),
+  ...(hiddenToolbar && {
+    paddingTop: theme.spacing(2),
+  }),
+}));
+
+const DemoRootJoy = joyStyled('div', {
+  shouldForwardProp: (prop) => prop !== 'hiddenToolbar' && prop !== 'bg',
+})(({ theme, hiddenToolbar, bg }) => ({
+  position: 'relative',
+  outline: 0,
+  margin: 'auto',
+  display: 'flex',
+  justifyContent: 'center',
+  [theme.breakpoints.up('sm')]: {
+    borderRadius: 10,
+    ...(bg === 'outlined' && {
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+    }),
+    /* Make no difference between the demo and the markdown. */
+    ...(bg === 'inline' && {
+      padding: theme.spacing(0),
+    }),
+    ...(hiddenToolbar && {
+      paddingTop: theme.spacing(1),
+    }),
+  },
+  /* Isolate the demo with an outline. */
+  ...(bg === 'outlined' && {
+    padding: theme.spacing(3),
+    backgroundColor: theme.vars.palette.background.surface,
+    border: `1px solid`,
+    borderColor: theme.vars.palette.divider,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+  }),
+  /* Prepare the background to display an inner elevation. */
+  ...(bg === true && {
+    padding: theme.spacing(3),
+    backgroundColor: theme.vars.palette.background.level2,
+  }),
+  ...(hiddenToolbar && {
+    paddingTop: theme.spacing(3),
+  }),
+}));
+
+const Code = styled(HighlightedCode)(({ theme }) => ({
+  padding: 0,
+  marginBottom: theme.spacing(1),
+  marginTop: theme.spacing(2),
+  [theme.breakpoints.up('sm')]: {
+    marginTop: theme.spacing(0),
+  },
+  '& pre': {
+    margin: '0 auto',
+    maxHeight: 'min(68vh, 1000px)',
+  },
+}));
+
+const AnchorLink = styled('div')({
+  marginTop: -64, // height of toolbar
+  position: 'absolute',
+});
+
+const InitialFocus = styled(IconButton)(({ theme }) => ({
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: theme.spacing(4),
+  height: theme.spacing(4),
+  pointerEvents: 'none',
+}));
 export default function Demo(props) {
-  const { demo, demoOptions, disableAd, githubLocation } = props;
-  const classes = useStyles();
+  const router = useRouter();
+  const asPathWithoutLang = router.asPath.replace(/^\/[a-zA-Z]{2}\//, '/');
+  const { demo, demoOptions, disableAd, githubLocation, mode } = props;
   const t = useTranslate();
-  const codeVariant = useSelector((state) => state.options.codeVariant);
+  const codeVariant = useCodeVariant();
   const demoData = useDemoData(codeVariant, demo, githubLocation);
 
   const [demoHovered, setDemoHovered] = React.useState(false);
@@ -205,12 +294,8 @@ export default function Demo(props) {
     }
   }, [demoName]);
 
-  const jsx = getJsxPreview(demoData.raw || '');
   const showPreview =
-    !demoOptions.hideToolbar &&
-    demoOptions.defaultCodeOpen !== false &&
-    jsx !== demoData.raw &&
-    jsx.split(/\n/).length <= 17;
+    !demoOptions.hideToolbar && demoOptions.defaultCodeOpen !== false && Boolean(demo.jsxPreview);
 
   const [demoKey, resetDemo] = React.useReducer((key) => key + 1, 0);
 
@@ -222,25 +307,27 @@ export default function Demo(props) {
 
   const [showAd, setShowAd] = React.useState(false);
 
+  const isJoy = asPathWithoutLang.startsWith('/joy-ui');
+  const DemoRoot = asPathWithoutLang.startsWith('/joy-ui') ? DemoRootJoy : DemoRootMaterial;
+  const Wrapper = asPathWithoutLang.startsWith('/joy-ui') ? BrandingProvider : React.Fragment;
+
   return (
-    <div className={classes.root}>
-      <div
-        className={clsx(classes.demo, {
-          [classes.demoHiddenToolbar]: demoOptions.hideToolbar,
-          [classes.demoBgOutlined]: demoOptions.bg === 'outlined',
-          [classes.demoBgTrue]: demoOptions.bg === true,
-          [classes.demoBgInline]: demoOptions.bg === 'inline',
-        })}
+    <Root>
+      <AnchorLink id={`${demoName}`} />
+      <DemoRoot
+        hiddenToolbar={demoOptions.hideToolbar}
+        bg={demoOptions.bg}
         id={demoId}
         onMouseEnter={handleDemoHover}
         onMouseLeave={handleDemoHover}
       >
-        <IconButton
-          aria-label={t('initialFocusLabel')}
-          className={classes.initialFocus}
-          action={initialFocusRef}
-          tabIndex={-1}
-        />
+        <Wrapper {...(isJoy && { mode })}>
+          <InitialFocus
+            aria-label={t('initialFocusLabel')}
+            action={initialFocusRef}
+            tabIndex={-1}
+          />
+        </Wrapper>
         <DemoSandboxed
           key={demoKey}
           style={demoSandboxedStyle}
@@ -249,46 +336,50 @@ export default function Demo(props) {
           name={demoName}
           onResetDemoClick={resetDemo}
         />
-      </div>
-      <div className={classes.anchorLink} id={`${demoName}.js`} />
-      <div className={classes.anchorLink} id={`${demoName}.tsx`} />
-      {demoOptions.hideToolbar ? null : (
-        <NoSsr defer fallback={<DemoToolbarFallback />}>
-          <React.Suspense fallback={<DemoToolbarFallback />}>
-            <DemoToolbar
-              codeOpen={codeOpen}
-              codeVariant={codeVariant}
-              demo={demo}
-              demoData={demoData}
-              demoHovered={demoHovered}
-              demoId={demoId}
-              demoName={demoName}
-              demoOptions={demoOptions}
-              demoSourceId={demoSourceId}
-              initialFocusRef={initialFocusRef}
-              onCodeOpenChange={() => {
-                setCodeOpen((open) => !open);
-                setShowAd(true);
-              }}
-              onResetDemoClick={resetDemo}
-              openDemoSource={openDemoSource}
-              showPreview={showPreview}
-            />
-          </React.Suspense>
-        </NoSsr>
-      )}
-      <Collapse in={openDemoSource} unmountOnExit>
-        <div>
-          <HighlightedCode
-            className={classes.code}
+      </DemoRoot>
+      <AnchorLink id={`${demoName}.js`} />
+      <AnchorLink id={`${demoName}.tsx`} />
+      <Wrapper {...(isJoy && { mode })}>
+        {demoOptions.hideToolbar ? null : (
+          <NoSsr defer fallback={<DemoToolbarFallback />}>
+            <React.Suspense fallback={<DemoToolbarFallback />}>
+              <DemoToolbar
+                codeOpen={codeOpen}
+                codeVariant={codeVariant}
+                demo={demo}
+                demoData={demoData}
+                demoHovered={demoHovered}
+                demoId={demoId}
+                demoName={demoName}
+                demoOptions={demoOptions}
+                demoSourceId={demoSourceId}
+                initialFocusRef={initialFocusRef}
+                onCodeOpenChange={() => {
+                  setCodeOpen((open) => !open);
+                  setShowAd(true);
+                }}
+                onResetDemoClick={resetDemo}
+                openDemoSource={openDemoSource}
+                showPreview={showPreview}
+              />
+            </React.Suspense>
+          </NoSsr>
+        )}
+        <Collapse in={openDemoSource} unmountOnExit>
+          <Code
             id={demoSourceId}
-            code={showPreview && !codeOpen ? jsx : demoData.raw}
+            code={showPreview && !codeOpen ? demo.jsxPreview : demoData.raw}
             language={demoData.sourceLanguage}
+            copyButtonProps={{
+              'data-ga-event-category': codeOpen ? 'demo-expand' : 'demo',
+              'data-ga-event-label': demoOptions.demo,
+              'data-ga-event-action': 'copy-click',
+            }}
           />
-        </div>
-      </Collapse>
-      {showAd && !disableAd && !demoOptions.disableAd ? <AdCarbonInline /> : null}
-    </div>
+        </Collapse>
+        {showAd && !disableAd && !demoOptions.disableAd ? <AdCarbonInline /> : null}
+      </Wrapper>
+    </Root>
   );
 }
 
@@ -297,4 +388,5 @@ Demo.propTypes = {
   demoOptions: PropTypes.object.isRequired,
   disableAd: PropTypes.bool.isRequired,
   githubLocation: PropTypes.string.isRequired,
+  mode: PropTypes.string, // temporary, just to make Joy docs work.
 };

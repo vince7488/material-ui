@@ -1,12 +1,18 @@
 import * as React from 'react';
 import ReactDOM from 'react-dom';
-import { BrowserRouter as Router, Switch, Route, Link } from 'react-router-dom';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import * as DomTestingLibrary from '@testing-library/dom';
 import TestViewer from './TestViewer';
 
 const fixtures = [];
 
-const requireFixtures = require.context('./fixtures', true, /\.(js|ts|tsx)$/);
-requireFixtures.keys().forEach((path) => {
+const importFixtures = require.context('./fixtures', true, /\.(js|ts|tsx)$/, 'lazy');
+importFixtures.keys().forEach((path) => {
+  // require.context contains paths for module alias imports and relative imports
+  if (!path.startsWith('.')) {
+    return;
+  }
   const [suite, name] = path
     .replace('./', '')
     .replace(/\.\w+$/, '')
@@ -15,7 +21,7 @@ requireFixtures.keys().forEach((path) => {
     path,
     suite: `e2e/${suite}`,
     name,
-    Component: requireFixtures(path).default,
+    Component: React.lazy(() => importFixtures(path)),
   });
 });
 
@@ -47,7 +53,7 @@ function App() {
 
   return (
     <Router>
-      <Switch>
+      <Routes>
         {fixtures.map((fixture) => {
           const path = computePath(fixture);
           const FixtureComponent = fixture.Component;
@@ -57,14 +63,19 @@ function App() {
           }
 
           return (
-            <Route key={path} exact path={path}>
-              <TestViewer>
-                <FixtureComponent />
-              </TestViewer>
-            </Route>
+            <Route
+              key={path}
+              exact
+              path={path}
+              element={
+                <TestViewer>
+                  <FixtureComponent />
+                </TestViewer>
+              }
+            />
           );
         })}
-      </Switch>
+      </Routes>
       <div hidden={!isDev}>
         <p>
           Devtools can be enabled by appending <code>#dev</code> in the addressbar or disabled by
@@ -91,4 +102,26 @@ function App() {
   );
 }
 
-ReactDOM.render(<App />, document.getElementById('react-root'));
+const container = document.getElementById('react-root');
+const children = <App />;
+if (typeof ReactDOM.unstable_createRoot === 'function') {
+  const root = ReactDOM.unstable_createRoot(container);
+  root.render(children);
+} else {
+  const root = createRoot(container);
+  root.render(children);
+}
+
+window.DomTestingLibrary = DomTestingLibrary;
+window.elementToString = function elementToString(element) {
+  if (
+    element != null &&
+    (element.nodeType === element.ELEMENT_NODE || element.nodeType === element.DOCUMENT_NODE)
+  ) {
+    return window.DomTestingLibrary.prettyDOM(element, undefined, {
+      highlight: true,
+      maxDepth: 1,
+    });
+  }
+  return String(element);
+};

@@ -1,66 +1,114 @@
-/* eslint-disable material-ui/no-hardcoded-labels, react/no-danger */
+/* eslint-disable react/no-danger */
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
-import { exactProp } from '@material-ui/utils';
-import Typography from '@material-ui/core/Typography';
+import { exactProp } from '@mui/utils';
+import { alpha, styled } from '@mui/material/styles';
+import Alert from '@mui/material/Alert';
+import Typography from '@mui/material/Typography';
 import { useTranslate, useUserLanguage } from 'docs/src/modules/utils/i18n';
 import HighlightedCode from 'docs/src/modules/components/HighlightedCode';
 import MarkdownElement from 'docs/src/modules/components/MarkdownElement';
 import AppLayoutDocs from 'docs/src/modules/components/AppLayoutDocs';
+
+const Asterisk = styled('abbr')(({ theme }) => ({ color: theme.palette.error.main }));
+
+const Wrapper = styled('div')({
+  overflow: 'hidden',
+});
+const Table = styled('table')(({ theme }) => {
+  const contentColor =
+    theme.palette.mode === 'dark'
+      ? alpha(theme.palette.primaryDark[900], 1)
+      : 'rgba(255, 255, 255, 1)';
+  const contentColorTransparent =
+    theme.palette.mode === 'dark'
+      ? alpha(theme.palette.primaryDark[900], 0)
+      : 'rgba(255, 255, 255, 0)';
+  const shadowColor = theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.2)';
+  return {
+    borderRadius: 10,
+    background: `
+  linear-gradient(to right, ${contentColor} 5%, ${contentColorTransparent}),
+  linear-gradient(to right, ${contentColorTransparent}, ${contentColor} 100%) 100%,
+  linear-gradient(to right, ${shadowColor}, rgba(0, 0, 0, 0) 5%),
+  linear-gradient(to left, ${shadowColor}, rgba(0, 0, 0, 0) 5%)`,
+    backgroundAttachment: 'local, local, scroll, scroll',
+    // the above background create thin line on the left and right sides of the table
+    // as a workaround, use negative margin with overflow `hidden` on the parent
+    marginLeft: -1,
+    marginRight: -1,
+  };
+});
 
 function PropsTable(props) {
   const { componentProps, propDescriptions } = props;
   const t = useTranslate();
 
   return (
-    <table>
-      <thead>
-        <tr>
-          <th align="left">{t('api-docs.name')}</th>
-          <th align="left">{t('api-docs.type')}</th>
-          <th align="left">{t('api-docs.default')}</th>
-          <th align="left">{t('api-docs.description')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {Object.entries(componentProps).map(([propName, propData]) => {
-          const typeDescription = propData.type.description || propData.type.name;
-          const propDefault = propData.default || (propData.type.name === 'bool' && 'false');
-          return (
-            propData.description !== '@ignore' && (
-              <tr key={propName}>
-                <td align="left">
-                  <span className={clsx('prop-name', propData.required ? 'required' : null)}>
-                    {propName}
-                    {propData.required ? (
-                      <sup>
-                        <abbr title="required">*</abbr>
-                      </sup>
-                    ) : null}
-                  </span>
-                </td>
-                <td align="left">
-                  <span
-                    className="prop-type"
-                    dangerouslySetInnerHTML={{ __html: typeDescription }}
-                  />
-                </td>
-                <td align="left">
-                  {propDefault && <span className="prop-default">{propDefault}</span>}
-                </td>
-                <td
-                  align="left"
-                  dangerouslySetInnerHTML={{
-                    __html: propDescriptions[propName] || '',
-                  }}
-                />
-              </tr>
-            )
-          );
-        })}
-      </tbody>
-    </table>
+    <Wrapper>
+      <Table>
+        <thead>
+          <tr>
+            <th align="left">{t('api-docs.name')}</th>
+            <th align="left">{t('api-docs.type')}</th>
+            <th align="left">{t('api-docs.default')}</th>
+            <th align="left">{t('api-docs.description')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(componentProps).map(([propName, propData]) => {
+            const typeDescription = propData.type.description || propData.type.name;
+            const propDefault = propData.default || (propData.type.name === 'bool' && 'false');
+            return (
+              propData.description !== '@ignore' && (
+                <tr key={propName}>
+                  <td align="left">
+                    <span className={clsx('prop-name', propData.required ? 'required' : null)}>
+                      {propName}
+                      {propData.required && (
+                        <sup>
+                          <Asterisk title="required">*</Asterisk>
+                        </sup>
+                      )}
+                    </span>
+                  </td>
+                  <td align="left">
+                    <span
+                      className="prop-type"
+                      dangerouslySetInnerHTML={{ __html: typeDescription }}
+                    />
+                  </td>
+                  <td align="left">
+                    {propDefault && <span className="prop-default">{propDefault}</span>}
+                  </td>
+                  <td align="left">
+                    {propData.deprecated && (
+                      <Alert severity="warning" sx={{ mb: 1, py: 0 }}>
+                        <strong>{t('api-docs.deprecated')}</strong>
+                        {propData.deprecationInfo && ' - '}
+                        {propData.deprecationInfo && (
+                          <span
+                            dangerouslySetInnerHTML={{
+                              __html: propData.deprecationInfo,
+                            }}
+                          />
+                        )}
+                      </Alert>
+                    )}
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: propDescriptions[propName] || '',
+                      }}
+                    />
+                  </td>
+                </tr>
+              )
+            );
+          })}
+        </tbody>
+      </Table>
+    </Wrapper>
   );
 }
 
@@ -143,11 +191,9 @@ function Heading(props) {
   const t = useTranslate();
 
   return (
-    <Level>
-      {/* eslint-disable-next-line jsx-a11y/anchor-is-valid, jsx-a11y/anchor-has-content */}
-      <a className="anchor-link" id={hash} />
+    <Level id={hash}>
       {getTranslatedHeader(t, hash)}
-      <a className="anchor-link-style" aria-hidden="true" aria-label="anchor" href={`#${hash}`}>
+      <a aria-labelledby={hash} className="anchor-link-style" href={`#${hash}`} tabIndex={-1}>
         <svg>
           <use xlinkHref="#anchor-link-icon" />
         </svg>
@@ -175,7 +221,6 @@ function ApiDocs(props) {
     name: componentName,
     props: componentProps,
     spread,
-    styledComponent,
     styles: componentStyles,
   } = pageContent;
 
@@ -188,12 +233,12 @@ function ApiDocs(props) {
   const description = t('api-docs.pageDescription').replace(/{{name}}/, componentName);
 
   const source = filename
-    .replace(
-      /\/packages\/material-ui(-(.+?))?\/src/,
-      (match, dash, pkg) => `@material-ui/${pkg || 'core'}`,
-    )
+    .replace(/\/packages\/mui(-(.+?))?\/src/, (match, dash, pkg) => `@mui/${pkg}`)
     // convert things like `/Table/Table.js` to ``
     .replace(/\/([^/]+)\/\1\.(js|tsx)$/, '');
+
+  // Prefer linking the .tsx or .d.ts for the "Edit this page" link.
+  const apiSourceLocation = filename.replace('.js', '.d.ts');
 
   function createTocEntry(sectionName) {
     return {
@@ -212,7 +257,7 @@ function ApiDocs(props) {
     ...componentDescriptionToc,
     componentStyles.name && createTocEntry('component-name'),
     createTocEntry('props'),
-    componentStyles.classes && createTocEntry('css'),
+    componentStyles.classes.length > 0 && createTocEntry('css'),
     createTocEntry('demos'),
   ].filter(Boolean);
 
@@ -244,8 +289,8 @@ function ApiDocs(props) {
       description={description}
       disableAd={false}
       disableToc={false}
-      location={filename}
-      title={`${componentName} API – Material-UI`}
+      location={apiSourceLocation}
+      title={`${componentName} API`}
       toc={toc}
     >
       <MarkdownElement>
@@ -266,7 +311,11 @@ import { ${componentName} } from '${source}';`}
           <React.Fragment>
             <br />
             <br />
-            <span dangerouslySetInnerHTML={{ __html: componentDescription }} />
+            <span
+              dangerouslySetInnerHTML={{
+                __html: componentDescription,
+              }}
+            />
           </React.Fragment>
         ) : null}
         {componentStyles.name && (
@@ -283,6 +332,7 @@ import { ${componentName} } from '${source}';`}
           </React.Fragment>
         )}
         <Heading hash="props" />
+        <p dangerouslySetInnerHTML={{ __html: spreadHint }} />
         <PropsTable componentProps={componentProps} propDescriptions={propDescriptions} />
         <br />
         {cssComponent && (
@@ -297,8 +347,6 @@ import { ${componentName} } from '${source}';`}
           </React.Fragment>
         )}
         <span dangerouslySetInnerHTML={{ __html: refHint }} />
-        <br />
-        <span dangerouslySetInnerHTML={{ __html: spreadHint }} />
         {inheritance && (
           <React.Fragment>
             <Heading hash="inheritance" level="h3" />
@@ -323,20 +371,9 @@ import { ${componentName} } from '${source}';`}
             />
             <br />
             <span dangerouslySetInnerHTML={{ __html: t('api-docs.overrideStyles') }} />
-            {styledComponent ? (
-              <span
-                dangerouslySetInnerHTML={{ __html: t('api-docs.overrideStylesStyledComponent') }}
-              />
-            ) : (
-              <span
-                dangerouslySetInnerHTML={{
-                  __html: t('api-docs.overrideStylesJss').replace(
-                    /{{URL}}/,
-                    `${process.env.SOURCE_CODE_ROOT_URL}${filename}`,
-                  ),
-                }}
-              />
-            )}
+            <span
+              dangerouslySetInnerHTML={{ __html: t('api-docs.overrideStylesStyledComponent') }}
+            />
           </React.Fragment>
         ) : null}
         <Heading hash="demos" />

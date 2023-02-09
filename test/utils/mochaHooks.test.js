@@ -3,12 +3,12 @@ import { expect } from 'chai';
 import * as React from 'react';
 import { stub } from 'sinon';
 import { createMochaHooks } from './mochaHooks';
-import { createClientRender } from './createClientRender';
+import { createRenderer, act } from './createRenderer';
 
 describe('mochaHooks', () => {
   // one block per hook.
   describe('afterEach', () => {
-    describe('throws on unexpected console.(warn|error) in afterEach', function suite() {
+    describe('on unexpected console.(warn|error) in afterEach', function suite() {
       const mochaHooks = createMochaHooks(Mocha);
 
       beforeEach(function beforeEachHook() {
@@ -20,7 +20,7 @@ describe('mochaHooks', () => {
         });
       });
 
-      it('', () => {
+      it('throws an error', () => {
         console.warn('unexpected warning');
         console.error('unexpected error');
       });
@@ -44,9 +44,11 @@ describe('mochaHooks', () => {
       });
     });
 
-    describe('dedupes missing act() warnings by component', () => {
+    // TODO: May not be relevant in React 18
+    describe('when having missing act() warnings by component', () => {
       const mochaHooks = createMochaHooks(Mocha);
-      const render = createClientRender();
+      // missing act warnings only happen in StrictMode
+      const { render } = createRenderer({ strict: true });
 
       beforeEach(function beforeEachHook() {
         mochaHooks.beforeAll.forEach((beforeAllMochaHook) => {
@@ -57,7 +59,7 @@ describe('mochaHooks', () => {
         });
       });
 
-      it('', () => {
+      it('dedupes them', () => {
         const Child = React.forwardRef(function Child() {
           React.useEffect(() => {});
           React.useEffect(() => {});
@@ -79,6 +81,8 @@ describe('mochaHooks', () => {
 
         // not wrapped in act()
         unsafeSetState(1);
+        // make sure effects are flushed
+        act(() => {});
       });
 
       afterEach(function afterEachHook() {
@@ -96,13 +100,13 @@ describe('mochaHooks', () => {
           error.match(/An update to Parent inside a test was not wrapped in act/g),
         ).to.have.lengthOf(1);
         expect(
-          error.match(/An update to Parent ran an effect, but was not wrapped in act/g),
-        ).to.have.lengthOf(1);
+          error.match(/An update to Parent ran an effect, but was not wrapped in act/g) ?? [],
+        ).to.have.lengthOf(React.startTransition !== undefined ? 0 : 1);
         expect(
           error.match(
             /An update to ForwardRef\(Child\) ran an effect, but was not wrapped in act/g,
-          ),
-        ).to.have.lengthOf(1);
+          ) ?? [],
+        ).to.have.lengthOf(React.startTransition !== undefined ? 0 : 1);
       });
     });
   });

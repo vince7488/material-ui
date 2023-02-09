@@ -155,6 +155,18 @@ async function run() {
         path: './noop/index.js',
       },
       {
+        name: 'Grid (html)',
+        path: './grid-simple/index.js',
+      },
+      {
+        name: 'Grid System',
+        path: './grid-system/index.js',
+      },
+      {
+        name: 'Grid Material UI',
+        path: './grid-material-ui/index.js',
+      },
+      {
         name: 'Table',
         path: './table-cell/index.js',
       },
@@ -168,9 +180,9 @@ async function run() {
         name: 'React components',
         path: './components/index.js',
       },
-      // Test that @material-ui/styled-engine doesn't add an signifiant overhead
+      // Test that @mui/styled-engine doesn't add an signifiant overhead
       {
-        name: 'Styled Material-UI',
+        name: 'Styled MUI',
         path: './styled-material-ui/index.js',
       },
       {
@@ -192,7 +204,7 @@ async function run() {
         path: './box-baseline/index.js',
       },
       {
-        name: 'Box Material-UI',
+        name: 'Box MUI',
         path: './box-material-ui/index.js',
       },
       {
@@ -205,7 +217,7 @@ async function run() {
       },
       // Test the system perf difference with alternatives
       {
-        name: 'styled-components Box + @material-ui/system',
+        name: 'styled-components Box + @mui/system',
         path: './styled-components-box-material-ui-system/index.js',
       },
       {

@@ -1,5 +1,5 @@
 {
-  "componentDescription": "Uses an additional container component if <code>ListItemSecondaryAction</code> is the last child.",
+  "componentDescription": "Uses an additional container component if `ListItemSecondaryAction` is the last child.",
   "propDescriptions": {
     "alignItems": "Defines the <code>align-items</code> style property.",
     "autoFocus": "If <code>true</code>, the list item is focused during the first mount. Focus will also be triggered if the value changes from false to true.",
@@ -7,13 +7,18 @@
     "children": "The content of the component if a <code>ListItemSecondaryAction</code> is used it must be the last child.",
     "classes": "Override or extend the styles applied to the component. See <a href=\"#css\">CSS API</a> below for more details.",
     "component": "The component used for the root node. Either a string to use a HTML element or a component.",
-    "ContainerComponent": "The container component used when a <code>ListItemSecondaryAction</code> is the last child.<br>⚠️ <a href=\"/guides/composition/#caveat-with-refs\">Needs to be able to hold a ref</a>.",
+    "components": "The components used for each slot inside the InputBase. Either a string to use a HTML element or a component.",
+    "componentsProps": "The props used for each slot inside the Input.",
+    "ContainerComponent": "The container component used when a <code>ListItemSecondaryAction</code> is the last child.<br>⚠️ <a href=\"/material-ui/guides/composition/#caveat-with-refs\">Needs to be able to hold a ref</a>.",
     "ContainerProps": "Props applied to the container component if used.",
     "dense": "If <code>true</code>, compact vertical padding designed for keyboard and mouse input is used. The prop defaults to the value inherited from the parent List component.",
     "disabled": "如果被设置为 <code>true</code>，那么该组件将会被禁用。",
-    "disableGutters": "If <code>true</code>, the left and right padding is removed.",
-    "divider": "If <code>true</code>, a 1px light border is added to the bottom of the list item.",
-    "selected": "Use to apply selected styling."
+    "disableGutters": "如果设置为<code>true</code>，则左右内边距（padding）会被移除。",
+    "disablePadding": "如果设置为<code>true</code>，则所有内边距（padding）会被移除。",
+    "divider": "如果 <code>true</code>, 一个 1px 灯光边框添加到列表项底部。",
+    "secondaryAction": "在列表项末端显示的元素。",
+    "selected": "Use to apply selected styling.",
+    "sx": "The system prop that allows defining system overrides as well as additional CSS styles. See the <a href=\"/system/getting-started/the-sx-prop/\">`sx` page</a> for more details."
   },
   "classDescriptions": {
     "root": {
@@ -42,7 +47,7 @@
     },
     "disabled": {
       "description": "Pseudo-class applied to {{nodeName}} if {{conditions}}.",
-      "nodeName": "the inner `component` element",
+      "nodeName": "内部的`组件`元素",
       "conditions": "<code>disabled={true}</code>"
     },
     "divider": {
@@ -54,6 +59,11 @@
       "description": "Styles applied to {{nodeName}} unless {{conditions}}.",
       "nodeName": "the inner `component` element",
       "conditions": "<code>disableGutters={true}</code>"
+    },
+    "padding": {
+      "description": "Styles applied to {{nodeName}} unless {{conditions}}.",
+      "nodeName": "the root element",
+      "conditions": "<code>disablePadding={true}</code>"
     },
     "button": {
       "description": "Styles applied to {{nodeName}} if {{conditions}}.",

@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as playwright from 'playwright';
 
 async function main() {
-  const baseUrl = 'http://localhost:5000';
+  const baseUrl = 'http://localhost:3000';
   const screenshotDir = path.resolve(__dirname, './screenshots/chrome');
 
   const browser = await playwright.chromium.launch({
@@ -66,13 +66,23 @@ async function main() {
   async function takeScreenshot({ testcase, route }) {
     const screenshotPath = path.resolve(screenshotDir, `.${route}.png`);
     await fse.ensureDir(path.dirname(screenshotPath));
-    await testcase.screenshot({ path: screenshotPath, type: 'png' });
+
+    const explicitScreenshotTarget = await page.$('[data-testid="screenshot-target"]');
+    const screenshotTarget = explicitScreenshotTarget || testcase;
+
+    await screenshotTarget.screenshot({ path: screenshotPath, type: 'png' });
   }
 
   // prepare screenshots
   await fse.emptyDir(screenshotDir);
 
   describe('visual regressions', () => {
+    beforeEach(async () => {
+      await page.evaluate(() => {
+        localStorage.clear();
+      });
+    });
+
     after(async () => {
       await browser.close();
     });
@@ -99,6 +109,17 @@ async function main() {
         await takeScreenshot({ testcase, route: '/regression-Rating/FocusVisibleRating2' });
         await page.keyboard.press('ArrowLeft');
         await takeScreenshot({ testcase, route: '/regression-Rating/FocusVisibleRating3' });
+      });
+
+      it('should handle focus-visible with precise ratings correctly', async () => {
+        const index = routes.findIndex(
+          (route) => route === '/regression-Rating/PreciseFocusVisibleRating',
+        );
+        const testcase = await renderFixture(index);
+        await page.keyboard.press('Tab');
+        await takeScreenshot({ testcase, route: '/regression-Rating/PreciseFocusVisibleRating2' });
+        await page.keyboard.press('ArrowRight');
+        await takeScreenshot({ testcase, route: '/regression-Rating/PreciseFocusVisibleRating3' });
       });
     });
   });

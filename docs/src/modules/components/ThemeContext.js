@@ -1,19 +1,18 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
-import {
-  ThemeProvider as MuiThemeProvider,
-  createMuiTheme as createLegacyModeTheme,
-  unstable_createMuiStrictModeTheme as createStrictModeTheme,
-  darken,
-} from '@material-ui/core/styles';
-import useMediaQuery from '@material-ui/core/useMediaQuery';
-import { enUS, zhCN, faIR, ruRU, ptBR, esES, frFR, deDE, jaJP } from '@material-ui/core/locale';
-import { blue, pink } from '@material-ui/core/colors';
-import darkScrollbar from '@material-ui/core/darkScrollbar';
-import { unstable_useEnhancedEffect as useEnhancedEffect } from '@material-ui/core/utils';
+import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
+import { deepmerge } from '@mui/utils';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { enUS, zhCN, faIR, ruRU, ptBR, esES, frFR, deDE, jaJP } from '@mui/material/locale';
+import { unstable_useEnhancedEffect as useEnhancedEffect } from '@mui/material/utils';
 import { getCookie } from 'docs/src/modules/utils/helpers';
 import useLazyCSS from 'docs/src/modules/utils/useLazyCSS';
 import { useUserLanguage } from 'docs/src/modules/utils/i18n';
+import {
+  getDesignTokens,
+  getThemedComponents,
+  getMetaThemeColor,
+} from 'docs/src/modules/brandingTheme';
 
 const languageMap = {
   en: enUS,
@@ -27,16 +26,15 @@ const languageMap = {
   ja: jaJP,
 };
 
-export const themeColor = blue[700];
-
 const themeInitialOptions = {
   dense: false,
   direction: 'ltr',
   paletteColors: {},
   spacing: 8, // spacing unit
+  paletteMode: 'light',
 };
 
-const highDensity = {
+export const highDensity = {
   components: {
     MuiButton: {
       defaultProps: {
@@ -61,14 +59,6 @@ const highDensity = {
     MuiIconButton: {
       defaultProps: {
         size: 'small',
-      },
-      styleOverrides: {
-        sizeSmall: {
-          // minimal touch target hit spacing
-          marginLeft: 4,
-          marginRight: 4,
-          padding: 12,
-        },
       },
     },
     MuiInputBase: {
@@ -122,72 +112,68 @@ if (process.env.NODE_ENV !== 'production') {
   DispatchContext.displayName = 'ThemeDispatchContext';
 }
 
-let createMuiTheme;
-if (process.env.REACT_MODE === 'legacy') {
-  createMuiTheme = createLegacyModeTheme;
-} else {
-  createMuiTheme = createStrictModeTheme;
-}
-
 export function ThemeProvider(props) {
   const { children } = props;
-
-  const [themeOptions, dispatch] = React.useReducer((state, action) => {
-    switch (action.type) {
-      case 'SET_SPACING':
-        return {
-          ...state,
-          spacing: action.payload,
-        };
-      case 'INCREASE_SPACING': {
-        return {
-          ...state,
-          spacing: state.spacing + 1,
-        };
-      }
-      case 'DECREASE_SPACING': {
-        return {
-          ...state,
-          spacing: state.spacing - 1,
-        };
-      }
-      case 'SET_DENSE':
-        return {
-          ...state,
-          dense: action.payload,
-        };
-      case 'RESET_DENSITY':
-        return {
-          ...state,
-          dense: themeInitialOptions.dense,
-          spacing: themeInitialOptions.spacing,
-        };
-      case 'RESET_COLORS':
-        return {
-          ...state,
-          paletteColors: themeInitialOptions.paletteColors,
-        };
-      case 'CHANGE':
-        return {
-          ...state,
-          paletteMode: action.payload.paletteMode || state.paletteMode,
-          direction: action.payload.direction || state.direction,
-          paletteColors: action.payload.paletteColors || state.paletteColors,
-        };
-      default:
-        throw new Error(`Unrecognized type ${action.type}`);
-    }
-  }, themeInitialOptions);
-
-  const userLanguage = useUserLanguage();
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
   const preferredMode = prefersDarkMode ? 'dark' : 'light';
-  const { dense, direction, paletteColors, paletteMode = preferredMode, spacing } = themeOptions;
+
+  const [themeOptions, dispatch] = React.useReducer(
+    (state, action) => {
+      switch (action.type) {
+        case 'SET_SPACING':
+          return {
+            ...state,
+            spacing: action.payload,
+          };
+        case 'INCREASE_SPACING': {
+          return {
+            ...state,
+            spacing: state.spacing + 1,
+          };
+        }
+        case 'DECREASE_SPACING': {
+          return {
+            ...state,
+            spacing: state.spacing - 1,
+          };
+        }
+        case 'SET_DENSE':
+          return {
+            ...state,
+            dense: action.payload,
+          };
+        case 'RESET_DENSITY':
+          return {
+            ...state,
+            dense: themeInitialOptions.dense,
+            spacing: themeInitialOptions.spacing,
+          };
+        case 'RESET_COLORS':
+          return {
+            ...state,
+            paletteColors: themeInitialOptions.paletteColors,
+          };
+        case 'CHANGE':
+          return {
+            ...state,
+            paletteMode: action.payload.paletteMode || state.paletteMode,
+            direction: action.payload.direction || state.direction,
+            paletteColors: action.payload.paletteColors || state.paletteColors,
+          };
+        default:
+          throw new Error(`Unrecognized type ${action.type}`);
+      }
+    },
+    { ...themeInitialOptions, paletteMode: preferredMode },
+  );
+
+  const userLanguage = useUserLanguage();
+  const { dense, direction, paletteColors, paletteMode, spacing } = themeOptions;
 
   useLazyCSS('/static/styles/prism-okaidia.css', '#prismjs');
 
   React.useEffect(() => {
-    if (process.browser) {
+    if (typeof window !== 'undefined') {
       const nextPaletteColors = JSON.parse(getCookie('paletteColors') || 'null');
       const nextPaletteMode = getCookie('paletteMode') || preferredMode;
 
@@ -202,22 +188,32 @@ export function ThemeProvider(props) {
     document.body.dir = direction;
   }, [direction]);
 
+  React.useEffect(() => {
+    const metas = document.querySelectorAll('meta[name="theme-color"]');
+    metas.forEach((meta) => {
+      meta.setAttribute('content', getMetaThemeColor(paletteMode));
+    });
+  }, [paletteMode]);
+
   const theme = React.useMemo(() => {
-    const nextTheme = createMuiTheme(
+    const brandingDesignTokens = getDesignTokens(paletteMode);
+    const nextPalette = deepmerge(brandingDesignTokens.palette, paletteColors);
+    let nextTheme = createTheme(
       {
         direction,
+        ...brandingDesignTokens,
         nprogress: {
-          color: paletteMode === 'light' ? '#000' : '#fff',
+          color: brandingDesignTokens.palette.primary.main,
         },
         palette: {
-          primary: {
-            main: paletteMode === 'light' ? blue[700] : blue[200],
-          },
-          secondary: {
-            main: paletteMode === 'light' ? darken(pink.A400, 0.1) : pink[200],
-          },
+          ...nextPalette,
           mode: paletteMode,
-          ...paletteColors,
+        },
+        // v5 migration
+        props: {
+          MuiBadge: {
+            overlap: 'rectangular',
+          },
         },
         spacing,
       },
@@ -225,8 +221,8 @@ export function ThemeProvider(props) {
       {
         components: {
           MuiCssBaseline: {
-            styleOverrides: {
-              body: paletteMode === 'dark' ? darkScrollbar() : null,
+            defaultProps: {
+              enableColorScheme: true,
             },
           },
         },
@@ -234,22 +230,28 @@ export function ThemeProvider(props) {
       languageMap[userLanguage],
     );
 
-    nextTheme.palette.background.level2 =
-      paletteMode === 'light' ? nextTheme.palette.grey[100] : '#333';
-
-    nextTheme.palette.background.level1 =
-      paletteMode === 'light' ? '#fff' : nextTheme.palette.grey[900];
+    nextTheme = deepmerge(nextTheme, getThemedComponents(nextTheme));
 
     return nextTheme;
   }, [dense, direction, paletteColors, paletteMode, spacing, userLanguage]);
 
   React.useEffect(() => {
     // Expose the theme as a global variable so people can play with it.
-    if (process.browser) {
+    if (typeof window !== 'undefined') {
       window.theme = theme;
-      window.createMuiTheme = createMuiTheme;
+      window.createTheme = createTheme;
     }
   }, [theme]);
+
+  useEnhancedEffect(() => {
+    if (theme.palette.mode === 'dark') {
+      document.body.classList.remove('mode-light');
+      document.body.classList.add('mode-dark');
+    } else {
+      document.body.classList.remove('mode-dark');
+      document.body.classList.add('mode-light');
+    }
+  }, [theme.palette.mode]);
 
   return (
     <MuiThemeProvider theme={theme}>

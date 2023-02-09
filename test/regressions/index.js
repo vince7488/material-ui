@@ -1,27 +1,36 @@
 import * as React from 'react';
+import PropTypes from 'prop-types';
 import ReactDOM from 'react-dom';
-import { BrowserRouter as Router, Switch, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import webfontloader from 'webfontloader';
 import TestViewer from './TestViewer';
 
 // Get all the fixtures specifically written for preventing visual regressions.
-const requireRegressionFixtures = require.context('./fixtures', true, /\.(js|ts|tsx)$/);
+const importRegressionFixtures = require.context('./fixtures', true, /\.(js|ts|tsx)$/, 'lazy');
 const regressionFixtures = [];
-requireRegressionFixtures.keys().forEach((path) => {
+importRegressionFixtures.keys().forEach((path) => {
   const [suite, name] = path
     .replace('./', '')
     .replace(/\.\w+$/, '')
     .split('/');
 
-  regressionFixtures.push({
-    path,
-    suite: `regression-${suite}`,
-    name,
-    Component: requireRegressionFixtures(path).default,
-  });
+  // TODO: Why does webpack include a key for the absolute and relative path?
+  // We just want the relative path
+  if (path.startsWith('./')) {
+    regressionFixtures.push({
+      path,
+      suite: `regression-${suite}`,
+      name,
+      Component: React.lazy(() => importRegressionFixtures(path)),
+    });
+  }
 }, []);
 
 const blacklist = [
+  'docs-joy-getting-started-templates/TemplateCollection.png',
+  'docs-joy-core-features-automatic-adjustment/ListThemes.png',
+  'docs-joy-components-divider/DividerChildPosition.png', // Needs interaction
+  'docs-base-guides-working-with-tailwind-css/PlayerFinal.png', // No public components
   'docs-components-alert/TransitionAlerts.png', // Needs interaction
   'docs-components-app-bar/BackToTop.png', // Needs interaction
   'docs-components-app-bar/ElevateAppBar.png', // Needs interaction
@@ -47,17 +56,6 @@ const blacklist = [
   'docs-components-chips/ChipsPlayground.png', // Redux isolation
   'docs-components-click-away-listener', // Needs interaction
   'docs-components-container', // Can't see the impact
-  'docs-components-date-picker/CustomInput.png', // Redundant
-  'docs-components-date-picker/LocalizedDatePicker.png', // Redundant
-  'docs-components-date-picker/ResponsiveDatePickers.png', // Redundant
-  'docs-components-date-picker/ServerRequestDatePicker.png', // Redundant
-  'docs-components-date-picker/ViewsDatePicker.png', // Redundant
-  'docs-components-date-range-picker/CalendarsDateRangePicker.png', // Redundant
-  'docs-components-date-range-picker/CustomDateRangeInputs.png', // Redundant
-  'docs-components-date-range-picker/MinMaxDateRangePicker.png', // Redundant
-  'docs-components-date-range-picker/ResponsiveDateRangePicker.png', // Redundant
-  'docs-components-date-time-picker/BasicDateTimePicker.png', // Redundant
-  'docs-components-date-time-picker/ResponsiveDateTimePickers.png', // Redundant
   'docs-components-dialogs', // Needs interaction
   'docs-components-drawers/SwipeableEdgeDrawer.png', // Needs interaction
   'docs-components-drawers/SwipeableTemporaryDrawer.png', // Needs interaction
@@ -68,6 +66,7 @@ const blacklist = [
   'docs-components-hidden', // Need to dynamically resize to test
   'docs-components-icons/FontAwesomeIconSize.png', // Relies on cascading network requests
   'docs-components-image-list', // Image don't load
+  'docs-components-masonry/ImageMasonry.png', // Image don't load
   'docs-components-material-icons/synonyms.png', // No component
   'docs-components-menus', // Need interaction
   'docs-components-modal/KeepMountedModal.png', // Needs interaction
@@ -105,14 +104,13 @@ const blacklist = [
   'docs-components-snackbars/SimpleSnackbar.png', // Needs interaction
   'docs-components-snackbars/TransitionsSnackbar.png', // Needs interaction
   'docs-components-speed-dial', // Needs interaction
+  'docs-components-stack/InteractiveStack.png', // Redundant
   'docs-components-steppers/HorizontalNonLinearStepper.png', // Redundant
   'docs-components-steppers/SwipeableTextMobileStepper.png', // Flaky image loading
   'docs-components-steppers/TextMobileStepper.png', // Flaky image loading
   'docs-components-tabs/AccessibleTabs1.png', // Need interaction
   'docs-components-tabs/AccessibleTabs2.png', // Need interaction
   'docs-components-textarea-autosize', // Superseded by a dedicated regression test
-  'docs-components-time-picker/LocalizedTimePicker.png', // Redundant
-  'docs-components-time-picker/ResponsiveTimePickers.png', // Redundant
   'docs-components-tooltips', // Needs interaction
   'docs-components-transitions', // Needs interaction
   'docs-components-trap-focus', // Need interaction
@@ -170,6 +168,10 @@ function excludeDemoFixture(suite, name) {
     return true;
   }
 
+  if (suite.includes('docs-joy') && name.match(/(Variables|Usage)$/)) {
+    return true;
+  }
+
   return blacklist.some((pattern) => {
     if (typeof pattern === 'string') {
       if (pattern === suite) {
@@ -196,23 +198,26 @@ function excludeDemoFixture(suite, name) {
 }
 
 // Also use some of the demos to avoid code duplication.
-const requireDemos = require.context('docs/src/pages', true, /js$/);
+const importDemos = require.context('docs/data', true, /(?<!pagesApi)\.js$/, 'lazy');
 const demoFixtures = [];
-requireDemos.keys().forEach((path) => {
+importDemos.keys().forEach((path) => {
   const [name, ...suiteArray] = path.replace('./', '').replace('.js', '').split('/').reverse();
-  const suite = `docs-${suiteArray.reverse().join('-')}`;
+  const suite = `docs-${suiteArray
+    .reverse()
+    .join('-')
+    .replace(/^material-/, '')}`;
 
-  if (!excludeDemoFixture(suite, name)) {
+  // TODO: Why does webpack include a key for the absolute and relative path?
+  // We just want the relative path
+  if (path.startsWith('./') && !excludeDemoFixture(suite, name)) {
     demoFixtures.push({
       path,
       suite,
       name,
-      Component: requireDemos(path).default,
+      Component: React.lazy(() => importDemos(path)),
     });
   }
 }, []);
-
-const fixtures = regressionFixtures.concat(demoFixtures);
 
 if (unusedBlacklistPatterns.size > 0) {
   console.warn(
@@ -222,7 +227,35 @@ if (unusedBlacklistPatterns.size > 0) {
   );
 }
 
-function App() {
+const viewerRoot = document.getElementById('test-viewer');
+
+function FixtureRenderer({ component: FixtureComponent }) {
+  React.useLayoutEffect(() => {
+    const children = (
+      <TestViewer>
+        <FixtureComponent />
+      </TestViewer>
+    );
+
+    ReactDOM.render(children, viewerRoot);
+  }, [FixtureComponent]);
+
+  React.useLayoutEffect(() => {
+    return () => {
+      ReactDOM.unmountComponentAtNode(viewerRoot);
+    };
+  }, []);
+
+  return null;
+}
+
+FixtureRenderer.propTypes = {
+  component: PropTypes.elementType,
+};
+
+function App(props) {
+  const { fixtures } = props;
+
   function computeIsDev() {
     if (window.location.hash === '#dev') {
       return true;
@@ -249,7 +282,11 @@ function App() {
   React.useEffect(() => {
     webfontloader.load({
       google: {
-        families: ['Roboto:300,400,500,700', 'Material+Icons'],
+        families: [
+          'Roboto:300,400,500,700',
+          'Public Sans:300,400,500,600,700,800,900',
+          'Material+Icons',
+        ],
       },
       custom: {
         families: ['Font Awesome 5 Free:n9'],
@@ -273,7 +310,7 @@ function App() {
 
   return (
     <Router>
-      <Switch>
+      <Routes>
         {fixtures.map((fixture) => {
           const path = computePath(fixture);
           const FixtureComponent = fixture.Component;
@@ -283,16 +320,16 @@ function App() {
           }
 
           return (
-            <Route key={path} exact path={path}>
-              {fixturePrepared && (
-                <TestViewer>
-                  <FixtureComponent />
-                </TestViewer>
-              )}
-            </Route>
+            <Route
+              key={path}
+              exact
+              path={path}
+              element={fixturePrepared ? <FixtureRenderer component={FixtureComponent} /> : null}
+            />
           );
         })}
-      </Switch>
+      </Routes>
+
       <div hidden={!isDev}>
         <div data-webfontloader={fontState}>webfontloader: {fontState}</div>
         <p>
@@ -320,4 +357,15 @@ function App() {
   );
 }
 
-ReactDOM.render(<App />, document.getElementById('react-root'));
+App.propTypes = {
+  fixtures: PropTypes.array,
+};
+
+const container = document.getElementById('react-root');
+const children = <App fixtures={regressionFixtures.concat(demoFixtures)} />;
+if (typeof ReactDOM.unstable_createRoot === 'function') {
+  const root = ReactDOM.unstable_createRoot(container);
+  root.render(children);
+} else {
+  ReactDOM.render(children, container);
+}

@@ -1,4 +1,4 @@
-import { createRender } from './parseMarkdown';
+import { createRender } from '@mui/markdown';
 
 const notEnglishJsonRegExp = /-([a-z]{2})\.json$/;
 
@@ -24,7 +24,12 @@ export default function mapApiPageTranslations(req) {
 
     if (translation !== null && translation.componentDescription) {
       const componentDescriptionToc = [];
-      const render = createRender({ headingHashes, toc: componentDescriptionToc, userLanguage });
+      const render = createRender({
+        headingHashes,
+        toc: componentDescriptionToc,
+        userLanguage,
+        location: filenames,
+      });
       translation.componentDescription = render(translation.componentDescription);
       translation.componentDescriptionToc = componentDescriptionToc;
     }

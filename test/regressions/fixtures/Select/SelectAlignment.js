@@ -1,17 +1,23 @@
 import * as React from 'react';
-import Input from '@material-ui/core/Input';
-import InputLabel from '@material-ui/core/InputLabel';
-import MenuItem from '@material-ui/core/MenuItem';
-import FormHelperText from '@material-ui/core/FormHelperText';
-import FormControl from '@material-ui/core/FormControl';
-import Select from '@material-ui/core/Select';
+import OutlinedInput from '@mui/material/OutlinedInput';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import FormHelperText from '@mui/material/FormHelperText';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
 
 export default function SelectAlignment() {
   return (
     <div>
       <FormControl>
         <InputLabel htmlFor="age1">Age</InputLabel>
-        <Select value="" input={<Input name="age1" id="age1" />}>
+        <Select
+          value=""
+          label="Age"
+          id="age1"
+          fullWidth
+          input={<OutlinedInput name="age1" label="year" id="age1" />}
+        >
           <MenuItem value="">
             <em>None</em>
           </MenuItem>
@@ -20,7 +26,7 @@ export default function SelectAlignment() {
       </FormControl>
       <FormControl>
         <InputLabel htmlFor="age2">year</InputLabel>
-        <Select value={10} input={<Input name="year" id="age2" />}>
+        <Select value={10} input={<OutlinedInput label="year" name="year" id="age2" />}>
           <MenuItem value="">
             <em>None</em>
           </MenuItem>
@@ -29,7 +35,7 @@ export default function SelectAlignment() {
       </FormControl>
       <FormControl>
         <InputLabel htmlFor="name-input">Name</InputLabel>
-        <Input id="name-input" />
+        <OutlinedInput id="name-input" />
         <FormHelperText>Alignment with an input</FormHelperText>
       </FormControl>
     </div>

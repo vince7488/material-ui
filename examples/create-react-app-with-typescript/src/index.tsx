@@ -1,19 +1,17 @@
 import * as React from 'react';
-import ReactDOM from 'react-dom';
-import CssBaseline from '@material-ui/core/CssBaseline';
-import StyledEngineProvider from '@material-ui/core/StyledEngineProvider';
-import { ThemeProvider } from '@material-ui/core/styles';
+import { createRoot } from 'react-dom/client';
+import CssBaseline from '@mui/material/CssBaseline';
+import { ThemeProvider } from '@mui/material/styles';
 import App from './App';
 import theme from './theme';
 
-ReactDOM.render(
-  // TODO v5: remove once migration to emotion is completed
-  <StyledEngineProvider injectFirst>
-    <ThemeProvider theme={theme}>
-      {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
-  </StyledEngineProvider>,
-  document.querySelector('#root'),
+const rootElement = document.getElementById('root');
+const root = createRoot(rootElement!);
+
+root.render(
+  <ThemeProvider theme={theme}>
+    {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
+    <CssBaseline />
+    <App />
+  </ThemeProvider>,
 );

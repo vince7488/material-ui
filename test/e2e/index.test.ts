@@ -1,10 +1,37 @@
 import { expect } from 'chai';
 import * as playwright from 'playwright';
+import type {
+  ByRoleMatcher,
+  ByRoleOptions,
+  Matcher,
+  MatcherOptions,
+  SelectorMatcherOptions,
+} from '@testing-library/dom';
+import '../utils/initPlaywrightMatchers';
 
 function sleep(timeoutMS: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(), timeoutMS);
   });
+}
+
+interface PlaywrightScreen {
+  getByLabelText: (
+    labelText: Matcher,
+    options?: SelectorMatcherOptions,
+  ) => Promise<playwright.ElementHandle<HTMLElement>>;
+  getByRole: (
+    role: ByRoleMatcher,
+    options?: ByRoleOptions,
+  ) => Promise<playwright.ElementHandle<HTMLElement>>;
+  getByTestId: (
+    testId: string,
+    options?: MatcherOptions,
+  ) => Promise<playwright.ElementHandle<HTMLElement>>;
+  getByText: (
+    text: Matcher,
+    options?: SelectorMatcherOptions,
+  ) => Promise<playwright.ElementHandle<HTMLElement>>;
 }
 
 /**
@@ -34,12 +61,39 @@ async function attemptGoto(page: playwright.Page, url: string): Promise<boolean>
 }
 
 describe('e2e', () => {
-  const baseUrl = 'http://localhost:5000';
+  const baseUrl = 'http://localhost:3000';
   let browser: playwright.Browser;
   let page: playwright.Page;
+  const screen: PlaywrightScreen = {
+    getByLabelText: (...inputArgs) => {
+      return page.evaluateHandle(
+        (args) => window.DomTestingLibrary.getByLabelText(document.body, ...args),
+        inputArgs,
+      );
+    },
+    getByRole: (...inputArgs) => {
+      return page.evaluateHandle(
+        (args) => window.DomTestingLibrary.getByRole(document.body, ...args),
+        inputArgs,
+      );
+    },
+    getByText: (...inputArgs) => {
+      return page.evaluateHandle(
+        (args) => window.DomTestingLibrary.getByText(document.body, ...args),
+        inputArgs,
+      );
+    },
+    getByTestId: (...inputArgs) => {
+      return page.evaluateHandle(
+        (args) => window.DomTestingLibrary.getByTestId(document.body, ...args),
+        inputArgs,
+      );
+    },
+  };
 
   async function renderFixture(fixturePath: string) {
     await page.goto(`${baseUrl}/e2e/${fixturePath}#no-dev`);
+    await page.waitForSelector('[data-testid="testcase"]:not([aria-busy="true"])');
   }
 
   before(async function beforeHook() {
@@ -61,41 +115,62 @@ describe('e2e', () => {
     await browser.close();
   });
 
-  describe('<TrapFocus />', () => {
+  describe('<FocusTrap />', () => {
     it('should loop the tab key', async () => {
-      await renderFixture('Unstable_TrapFocus/OpenTrapFocus');
+      await renderFixture('FocusTrap/OpenFocusTrap');
 
-      expect(
-        await page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
-      ).to.equal('root');
+      await expect(screen.getByTestId('root')).toHaveFocus();
 
       await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => document.activeElement?.textContent)).to.equal('x');
+      await expect(screen.getByText('x')).toHaveFocus();
       await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => document.activeElement?.textContent)).to.equal('cancel');
+      await expect(screen.getByText('cancel')).toHaveFocus();
       await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => document.activeElement?.textContent)).to.equal('ok');
+      await expect(screen.getByText('ok')).toHaveFocus();
       await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => document.activeElement?.textContent)).to.equal('x');
+      await expect(screen.getByText('x')).toHaveFocus();
 
-      await page.focus('[data-testid="initial-focus"]');
-      expect(
-        await page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
-      ).to.equal('root');
-      await page.focus('text=x');
+      await screen.getByTestId('initial-focus').then(($element) => $element.focus());
+      await expect(screen.getByTestId('root')).toHaveFocus();
+      await screen.getByText('x').then(($element) => $element.focus());
       await page.keyboard.press('Shift+Tab');
-      expect(await page.evaluate(() => document.activeElement?.textContent)).to.equal('ok');
+      await expect(screen.getByText('ok')).toHaveFocus();
+    });
+
+    it('should loop the tab key after activation', async () => {
+      await renderFixture('FocusTrap/DefaultOpenLazyFocusTrap');
+
+      await expect(screen.getByTestId('initial-focus')).toHaveFocus();
+
+      await page.keyboard.press('Tab');
+      await expect(screen.getByText('close')).toHaveFocus();
+      await page.keyboard.press('Tab');
+      await expect(screen.getByText('noop')).toHaveFocus();
+      await page.keyboard.press('Tab');
+      await expect(screen.getByText('close')).toHaveFocus();
+      await page.keyboard.press('Enter');
+      await expect(screen.getByTestId('initial-focus')).toHaveFocus();
     });
 
     it('should focus on first focus element after last has received a tab click', async () => {
-      await renderFixture('Unstable_TrapFocus/OpenTrapFocus');
+      await renderFixture('FocusTrap/OpenFocusTrap');
 
       await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => document.activeElement?.textContent)).to.equal('x');
+      await expect(screen.getByText('x')).toHaveFocus();
       await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => document.activeElement?.textContent)).to.equal('cancel');
+      await expect(screen.getByText('cancel')).toHaveFocus();
       await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => document.activeElement?.textContent)).to.equal('ok');
+      await expect(screen.getByText('ok')).toHaveFocus();
+    });
+
+    it('should be able to be tabbed straight through when rendered closed', async () => {
+      await renderFixture('FocusTrap/ClosedFocusTrap');
+
+      await expect(screen.getByText('initial focus')).toHaveFocus();
+      await page.keyboard.press('Tab');
+      await expect(screen.getByText('inside focusable')).toHaveFocus();
+      await page.keyboard.press('Tab');
+      await expect(screen.getByText('final tab target')).toHaveFocus();
     });
   });
 
@@ -104,15 +179,33 @@ describe('e2e', () => {
       await renderFixture('Rating/BasicRating');
 
       await page.focus('input[name="rating-test"]:checked');
-      expect(await page.evaluate(() => document.activeElement?.getAttribute('value'))).to.equal(
-        '1',
+      await expect(page.evaluateHandle(() => document.activeElement)).toHaveAttribute('value', '1');
+      await page.keyboard.press('ArrowLeft');
+      await expect(page.evaluateHandle(() => document.activeElement)).to.toHaveAttribute(
+        'value',
+        '',
       );
       await page.keyboard.press('ArrowLeft');
-      expect(await page.evaluate(() => document.activeElement?.getAttribute('value'))).to.equal('');
-      await page.keyboard.press('ArrowLeft');
-      expect(await page.evaluate(() => document.activeElement?.getAttribute('value'))).to.equal(
+      await expect(page.evaluateHandle(() => document.activeElement)).to.toHaveAttribute(
+        'value',
         '5',
       );
+    });
+  });
+
+  describe('<TextareaAutosize />', () => {
+    // https://github.com/mui/material-ui/issues/32640
+    it('should handle suspense without error', async () => {
+      const pageErrors: string[] = [];
+      page.on('pageerror', (err) => pageErrors.push(err.name));
+
+      await renderFixture('TextareaAutosize/TextareaAutosizeSuspense');
+      expect(await page.isVisible('textarea')).to.equal(true);
+      await page.click('button');
+      expect(await page.isVisible('textarea')).to.equal(false);
+      await page.waitForTimeout(200); // Wait for debounce to fire (166)
+
+      expect(pageErrors.length).to.equal(0);
     });
   });
 });

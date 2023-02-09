@@ -8,7 +8,7 @@ const exec = promisify(childProcess.exec);
 
 /**
  * @param {string} commitMessage
- * @returns {string} The tags in lowercases, ordered ascending and commaseparated
+ * @returns {string} The tags in lowercases, ordered ascending and comma separated
  */
 function parseTags(commitMessage) {
   const tagMatch = commitMessage.match(/^(\[[\w-]+\])+/);
@@ -28,15 +28,12 @@ function parseTags(commitMessage) {
 }
 
 /**
- *
  * @param {Octokit.ReposCompareCommitsResponseCommitsItem} commitsItem
  */
 function filterCommit(commitsItem) {
-  // exclude dependabot commits (sometimes they're merged manually so filtering by author is insufficient)
-  return (
-    commitsItem.author.login !== 'dependabot-preview[bot]' &&
-    !commitsItem.commit.message.startsWith('Bump')
-  );
+  // TODO: Use labels
+  // Filter dependency updates
+  return !commitsItem.commit.message.startsWith('Bump');
 }
 
 async function findLatestTaggedVersion() {
@@ -57,7 +54,7 @@ async function findLatestTaggedVersion() {
 }
 
 async function main(argv) {
-  const { githubToken, lastRelease: lastReleaseInput, release } = argv;
+  const { githubToken, lastRelease: lastReleaseInput, release, repo } = argv;
 
   if (!githubToken) {
     throw new TypeError(
@@ -72,7 +69,7 @@ async function main(argv) {
   const lastRelease = lastReleaseInput !== undefined ? lastReleaseInput : latestTaggedVersion;
   if (lastRelease !== latestTaggedVersion) {
     console.warn(
-      `Creating changelog for ${latestTaggedVersion}..${release} when latest tagged version is '${latestTaggedVersion}'.`,
+      `Creating changelog for ${lastRelease}..${release} when latest tagged version is '${latestTaggedVersion}'.`,
     );
   }
 
@@ -81,8 +78,8 @@ async function main(argv) {
    */
   const timeline = octokit.paginate.iterator(
     octokit.repos.compareCommits.endpoint.merge({
-      owner: 'mui-org',
-      repo: 'material-ui',
+      owner: 'mui',
+      repo,
       base: lastRelease,
       head: release,
     }),
@@ -124,17 +121,16 @@ async function main(argv) {
   });
   const changes = commitsItems.map((commitsItem) => {
     // Helps changelog author keeping track of order when grouping commits under headings.
-    const dateSortMarker = `<!-- ${(
-      commitsItemsByDateDesc.length - commitsItemsByDateDesc.indexOf(commitsItem)
-    )
+    // &#8203; is a zero-width-space that ensures that the content of the listitem is formatted properly
+    const dateSortMarker = `&#8203;<!-- ${(commitsItems.length - commitsItems.indexOf(commitsItem))
       .toString()
       // Padding them with a zero means we can just feed a list into online sorting tools like https://www.online-utility.org/text/sort.jsp
       // i.e. we can sort the lines alphanumerically
-      .padStart(Math.ceil(Math.log10(commitsItemsByDateDesc.length)), '0')} -->`;
+      .padStart(Math.floor(Math.log10(commitsItemsByDateDesc.length)) + 1, '0')} -->`;
     const shortMessage = commitsItem.commit.message.split('\n')[0];
-    return `- ${dateSortMarker} ${shortMessage} @${commitsItem.author.login}`;
+    return `- ${dateSortMarker}${shortMessage} @${commitsItem.author.login}`;
   });
-  const nowFormated = new Date().toLocaleDateString('en-US', {
+  const nowFormatted = new Date().toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -143,9 +139,9 @@ async function main(argv) {
   const changelog = `
 ## TODO RELEASE NAME
 <!-- generated comparing ${lastRelease}..${release} -->
-_${nowFormated}_
+_${nowFormatted}_
 
-Big thanks to the ${
+A big thanks to the ${
     authors.length
   } contributors who made this release possible. Here are some highlights ✨:
 
@@ -168,7 +164,7 @@ yargs
       return command
         .option('lastRelease', {
           describe:
-            'The release to compare gainst e.g. `v5.0.0-alpha.23`. Default: The latest tag on the current branch.',
+            'The release to compare against e.g. `v5.0.0-alpha.23`. Default: The latest tag on the current branch.',
           type: 'string',
         })
         .option('githubToken', {
@@ -178,8 +174,14 @@ yargs
           type: 'string',
         })
         .option('release', {
-          default: 'next',
+          // #default-branch-switch
+          default: 'master',
           describe: 'Ref which we want to release',
+          type: 'string',
+        })
+        .option('repo', {
+          default: 'material-ui',
+          describe: 'Repository to generate a changelog for',
           type: 'string',
         });
     },

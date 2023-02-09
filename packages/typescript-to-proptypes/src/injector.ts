@@ -147,6 +147,13 @@ function plugin(
     ...otherOptions
   } = options;
   const shouldInclude: Exclude<InjectOptions['shouldInclude'], undefined> = (data) => {
+    // key is a reserved prop name in React
+    // e.g. https://github.com/reactjs/rfcs/pull/107
+    // no need to add a prop-type if we won't generate the docs for it.
+    if (data.prop.name === 'key' && data.prop.jsDoc === '@ignore') {
+      return false;
+    }
+
     if (options.shouldInclude) {
       const result = options.shouldInclude(data);
       if (result !== undefined) {
@@ -200,7 +207,7 @@ function plugin(
       // export { Component }
       path.insertAfter(babel.template.ast(`export { ${nodeName} };`));
       path.insertAfter(babel.template.ast(placeholder));
-      path.parentPath.replaceWith(path.node);
+      path.parentPath!.replaceWith(path.node);
     } else if (!emptyPropTypes && babelTypes.isExportDefaultDeclaration(path.parent)) {
       // in:
       // export default function Component() {}
@@ -210,7 +217,7 @@ function plugin(
       // export default Component
       path.insertAfter(babel.template.ast(`export default ${nodeName};`));
       path.insertAfter(babel.template.ast(placeholder));
-      path.parentPath.replaceWith(path.node);
+      path.parentPath!.replaceWith(path.node);
     } else {
       path.insertAfter(babel.template.ast(placeholder));
     }
@@ -280,7 +287,9 @@ function plugin(
           });
         },
         exit(path) {
-          if (alreadyImported || !needImport) return;
+          if (alreadyImported || !needImport) {
+            return;
+          }
 
           const propTypesImport = babel.template.ast(
             `import ${importName} from 'prop-types'`,
@@ -307,9 +316,13 @@ function plugin(
           return;
         }
 
-        if (!node.id) return;
+        if (!node.id) {
+          return;
+        }
         const props = propTypes.body.find((prop) => prop.name === node.id!.name);
-        if (!props) return;
+        if (!props) {
+          return;
+        }
 
         // Prevent visiting again
         (node as any).hasBeenVisited = true;
@@ -326,33 +339,6 @@ function plugin(
           props,
         });
       },
-      VariableDeclaration(path) {
-        const { node } = path;
-
-        if (!babelTypes.isIdentifier(node.declarations[0].id)) return;
-        const nodeName = node.declarations[0].id.name;
-
-        // Handle any variable with a comment containing `@typescript-to-proptypes-generate`
-        if (
-          node.leadingComments &&
-          node.leadingComments.some((comment) =>
-            comment.value.includes('@typescript-to-proptypes-generate'),
-          )
-        ) {
-          if (!propTypes.body.some((prop) => prop.name === nodeName)) {
-            console.warn(
-              `It looks like the variable at ${node.loc} with /* @typescript-to-proptypes-generate */ is not a component, or props can not be inferred from typescript definitions.`,
-            );
-          }
-
-          injectPropTypes({
-            nodeName,
-            usedProps: [],
-            path: path as babel.NodePath<babelTypes.Node>,
-            props: propTypes.body.find((prop) => prop.name === nodeName)!,
-          });
-        }
-      },
       VariableDeclarator(path) {
         const { node } = path;
 
@@ -362,11 +348,15 @@ function plugin(
           return;
         }
 
-        if (!babelTypes.isIdentifier(node.id)) return;
+        if (!babelTypes.isIdentifier(node.id)) {
+          return;
+        }
         const nodeName = node.id.name;
 
         const props = propTypes.body.find((prop) => prop.name === nodeName);
-        if (!props) return;
+        if (!props) {
+          return;
+        }
 
         function getFromProp(propsNode: babelTypes.Node) {
           // Prevent visiting again
@@ -396,6 +386,9 @@ function plugin(
           const arg = nodeInit.arguments[0];
           if (babelTypes.isArrowFunctionExpression(arg) || babelTypes.isFunctionExpression(arg)) {
             getFromProp(arg.params[0]);
+          } else if ((nodeInit.callee as babel.types.Identifier)?.name?.match(/create[A-Z].*/)) {
+            // Any components that are created by a factory function, eg. System Box | Container | Grid.
+            getFromProp(node);
           }
         }
       },
@@ -408,11 +401,15 @@ function plugin(
           return;
         }
 
-        if (!babelTypes.isIdentifier(node.id)) return;
+        if (!babelTypes.isIdentifier(node.id)) {
+          return;
+        }
         const nodeName = node.id.name;
 
         const props = propTypes.body.find((prop) => prop.name === nodeName);
-        if (!props) return;
+        if (!props) {
+          return;
+        }
 
         // Prevent visiting again
         (node as any).hasBeenVisited = true;
